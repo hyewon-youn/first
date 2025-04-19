@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>인물 맞히기 산성비 게임</title>
+    <style>
+        #gameArea {
+            width: 800px;
+            height: 600px;
+            border: 2px solid black;
+            position: relative;
+            overflow: hidden;
+            background-color: #f0f0f0;
+            margin: 0 auto;
+        }
+        .person {
+            position: absolute;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 3px;
+            border-radius: 8px;
+        }
+        .person.loading::before {
+            content: "로딩 중...";
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            color: #666;
+            z-index: 1;
+        }
+        .person img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 8px rgba(0,0,0,0.2);
+            opacity: 1;
+            transition: opacity 0.3s;
+            position: relative;
+            z-index: 2;
+        }
+        #inputArea {
+            margin-top: 15px;
+            font-size: 20px;
+            text-align: center;
+        }
+        #score {
+            margin-top: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+        #combo {
+            margin-top: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            color: #ff6b6b;
+        }
+        #answer {
+            font-size: 20px;
+            padding: 8px;
+            width: 250px;
+        }
+        .button {
+            margin: 15px 5px;
+            font-size: 20px;
+            padding: 12px 25px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        #countdown {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            font-weight: bold;
+            color: #333;
+            display: none;
+            width: 80%;
+            text-align: center;
+            font-family: '나눔명조', serif;
+            line-height: 1.5;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        #speedDisplay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 16px;
+            color: #333;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameArea">
+        <div id="countdown"></div>
+        <div id="speedDisplay">속도: 1x</div>
+    </div>
+    <div id="inputArea">
+        <input type="text" id="answer" placeholder="이름을 입력하세요" disabled>
+    </div>
+    <div id="score">점수: <span id="scoreValue">0</span></div>
+    <div id="combo">콤보: <span id="comboValue">0</span></div>
+    <div style="text-align: center;">
+        <button class="button" onclick="startGame()">게임 시작</button>
+    </div>
+
+    <script>
+        const COLUMN_COUNT = 5;
+        const COLUMN_WIDTH = 800 / COLUMN_COUNT;
+        let gameStarted = false;
+        let gameOver = false;
+        let score = 0;
+        let currentCombo = 0;
+        let maxCombo = 0;
+        let falling = [];
+        let speed = 1.2;
+        let speedMultiplier = 1;
+        let speedIncreaseInterval;
+        let gameStartTime;
+        let personCreationInterval;
+
+        const people = [
+            { name: "이정서", image: "https://i.ibb.co/hLxGykJ/image.png" },
+            { name: "김동현", image: "https://i.ibb.co/vXzmSp8/image.png" },
+            { name: "장준혁", image: "https://i.ibb.co/rv1DRcy/image.png" },
+            { name: "배국환", image: "https://i.ibb.co/YBQ1v4B/image.png" },
+            { name: "전재천", image: "https://i.ibb.co/2PZcC58/image.png" },
+            { name: "신용준", image: "https://i.ibb.co/dBMvp1V/image.png" },
+            { name: "박재언", image: "https://i.ibb.co/2WM57tk/image.png" },
+            { name: "정현재", image: "https://i.ibb.co/843Fhgq/image.png" },
+            { name: "유원진", image: "https://i.ibb.co/ZJHWF0z/image.png" },
+            { name: "전용욱", image: "https://i.ibb.co/YtkKHG3/image.png" },
+            { name: "이정서", image: "https://i.ibb.co/Pc7pKXD/2.png" },
+            { name: "박찬호", image: "https://i.ibb.co/myyS95q/image.png" },
+            { name: "김다영", image: "https://i.ibb.co/qL6s8M0/image.png" },
+            { name: "김진수", image: "https://i.ibb.co/ftgjtJ6/image.png" }
+        ];
+
+        function startGame() {
+            if (gameStarted) return;
+            
+            resetGame();
+            const countdown = document.getElementById('countdown');
+            countdown.style.display = 'block';
+            countdown.textContent = '역사를 잊은 민족에게 미래는 없다';
+            
+            setTimeout(() => {
+                countdown.textContent = '3';
+                setTimeout(() => {
+                    countdown.textContent = '2';
+                    setTimeout(() => {
+                        countdown.textContent = '1';
+                        setTimeout(() => {
+                            countdown.style.display = 'none';
+                            startActualGame();
+                        }, 1000);
+                    }, 1000);
+                }, 1000);
+            }, 1000);
+        }
+
+        function startActualGame() {
+            gameStarted = true;
+            gameOver = false;
+            speedMultiplier = 1;
+            updateSpeedDisplay();
+            gameStartTime = Date.now();
+            
+            document.getElementById('answer').disabled = false;
+            document.getElementById('answer').focus();
+            
+            // 주기적으로 인물 생성
+            createPerson();
+            personCreationInterval = setInterval(createPerson, 2000);
+            
+            // 위치 업데이트 시작
+            requestAnimationFrame(updatePositions);
+            
+            // 30초마다 속도 증가
+            speedIncreaseInterval = setInterval(increaseSpeed, 30000);
+        }
+
+        function createPerson() {
+            if (gameOver || !gameStarted) return;
+            
+            const gameTime = (Date.now() - gameStartTime) / 1000;
+            let x, y, movePattern;
+            const gameArea = document.getElementById('gameArea');
+            
+            if (gameTime > 30) {
+                movePattern = Math.floor(Math.random() * 4);
+                
+                switch(movePattern) {
+                    case 0: // 위에서 아래로
+                        const column = Math.floor(Math.random() * COLUMN_COUNT * 2);
+                        x = (column * COLUMN_WIDTH/2) + (COLUMN_WIDTH - 80) / 2;
+                        y = -100;
+                        break;
+                    case 1: // 왼쪽에서 오른쪽으로
+                        x = -100;
+                        y = Math.random() * (gameArea.offsetHeight - 100);
+                        break;
+                    case 2: // 오른쪽에서 왼쪽으로
+                        x = gameArea.offsetWidth + 100;
+                        y = Math.random() * (gameArea.offsetHeight - 100);
+                        break;
+                    case 3: // 아래에서 위로
+                        const col = Math.floor(Math.random() * COLUMN_COUNT * 2);
+                        x = (col * COLUMN_WIDTH/2) + (COLUMN_WIDTH - 80) / 2;
+                        y = gameArea.offsetHeight + 100;
+                        break;
+                }
+            } else {
+                const column = Math.floor(Math.random() * COLUMN_COUNT);
+                x = column * COLUMN_WIDTH + (COLUMN_WIDTH - 80) / 2;
+                y = -100;
+                movePattern = 0;
+            }
+            
+            const personIndex = Math.floor(Math.random() * people.length);
+            const person = people[personIndex];
+            
+            const element = document.createElement('div');
+            element.className = 'person loading';
+            element.style.left = x + 'px';
+            element.style.top = y + 'px';
+            
+            const img = document.createElement('img');
+            img.src = person.image;
+            img.onload = () => element.classList.remove('loading');
+            element.appendChild(img);
+            
+            document.getElementById('gameArea').appendChild(element);
+            
+            falling.push({
+                element: element,
+                x: x,
+                y: y,
+                speed: speed * speedMultiplier,
+                name: person.name,
+                movePattern: movePattern,
+                originalX: x,
+                originalY: y,
+                wobbleOffset: 0,
+                wobbleSpeed: 0.05 + Math.random() * 0.05
+            });
+        }
+
+        function updatePositions() {
+            if (!gameStarted || gameOver) return;
+            
+            const gameArea = document.getElementById('gameArea');
+            const gameTime = (Date.now() - gameStartTime) / 1000;
+            
+            for (let i = falling.length - 1; i >= 0; i--) {
+                const person = falling[i];
+                
+                if (gameTime > 30) {
+                    person.wobbleOffset += person.wobbleSpeed;
+                    
+                    switch(person.movePattern) {
+                        case 0: // 위에서 아래로
+                            person.y += person.speed;
+                            const wobbleX = Math.sin(person.wobbleOffset) * 20;
+                            person.element.style.left = (person.x + wobbleX) + 'px';
+                            person.element.style.top = person.y + 'px';
+                            if (person.y > 520) endGame();
+                            break;
+                            
+                        case 1: // 왼쪽에서 오른쪽으로
+                            person.x += person.speed;
+                            const wobbleY1 = Math.sin(person.wobbleOffset) * 20;
+                            person.element.style.left = person.x + 'px';
+                            person.element.style.top = (person.y + wobbleY1) + 'px';
+                            if (person.x > gameArea.offsetWidth) endGame();
+                            break;
+                            
+                        case 2: // 오른쪽에서 왼쪽으로
+                            person.x -= person.speed;
+                            const wobbleY2 = Math.sin(person.wobbleOffset) * 20;
+                            person.element.style.left = person.x + 'px';
+                            person.element.style.top = (person.y + wobbleY2) + 'px';
+                            if (person.x < -100) endGame();
+                            break;
+                            
+                        case 3: // 아래에서 위로
+                            person.y -= person.speed;
+                            const wobbleX2 = Math.sin(person.wobbleOffset) * 20;
+                            person.element.style.left = (person.x + wobbleX2) + 'px';
+                            person.element.style.top = person.y + 'px';
+                            if (person.y < -100) endGame();
+                            break;
+                    }
+                } else {
+                    if (person.movePattern === 0) {
+                        person.y += person.speed;
+                        person.element.style.top = person.y + 'px';
+                        
+                        if (person.y > 520) {
+                            endGame();
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            requestAnimationFrame(updatePositions);
+        }
+
+        function checkAnswer() {
+            const answer = document.getElementById('answer').value.trim();
+            if (!answer) return;
+            
+            let found = false;
+            for (let i = falling.length - 1; i >= 0; i--) {
+                if (falling[i].name === answer) {
+                    falling[i].element.remove();
+                    falling.splice(i, 1);
+                    found = true;
+                    
+                    currentCombo++;
+                    maxCombo = Math.max(maxCombo, currentCombo);
+                    
+                    let comboBonus = Math.floor(currentCombo / 5) * 50;
+                    score += 100 + comboBonus;
+                    
+                    document.getElementById('scoreValue').textContent = score;
+                    document.getElementById('comboValue').textContent = currentCombo;
+                    break;
+                }
+            }
+            
+            document.getElementById('answer').value = '';
+            
+            if (!found) {
+                currentCombo = 0;
+                score = Math.max(0, score - 50);
+                document.getElementById('scoreValue').textContent = score;
+                document.getElementById('comboValue').textContent = currentCombo;
+            }
+        }
+
+        function endGame() {
+            gameOver = true;
+            gameStarted = false;
+            clearInterval(speedIncreaseInterval);
+            clearInterval(personCreationInterval);
+            document.getElementById('answer').disabled = true;
+            
+            const countdown = document.getElementById('countdown');
+            countdown.style.display = 'block';
+            countdown.innerHTML = `게임 오버!<br>최종 점수: ${score}점<br>최대 콤보: ${maxCombo}`;
+        }
+
+             function resetGame() {
+            score = 0;
+            currentCombo = 0;
+            maxCombo = 0;
+            document.getElementById('scoreValue').textContent = score;
+            document.getElementById('comboValue').textContent = currentCombo;
+            falling.forEach(person => person.element.remove());
+            falling = [];
+            gameStarted = false;
+            gameOver = false;
+            speedMultiplier = 1;
+            updateSpeedDisplay();
+        }
+
+        function increaseSpeed() {
+            speedMultiplier += 0.2;
+            updateSpeedDisplay();
+        }
+
+        function updateSpeedDisplay() {
+            document.getElementById('speedDisplay').textContent = `속도: ${speedMultiplier.toFixed(1)}x`;
+        }
+
+        // 키보드 이벤트 리스너 추가
+        document.getElementById('answer').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkAnswer();
+            }
+        });
+    </script>
+</body>
+</html>
